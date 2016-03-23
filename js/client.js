@@ -1,3 +1,15 @@
+function postProxy(a, b, callback) {
+	var datastring = ((a.split('?').length - 1 > 0) ? "&" : "?") + "post=";
+	for (var i in b) datastring += escape(i) + "|";
+	$.post(a + datastring, b, callback);
+}
+function getProxy(ab, callback) {
+	$.get(ab, callback);
+}
+
+var $link = $('<link rel="stylesheet" href="/js/style.css" />');
+$('head').append($link);
+
 (function ($) {
 
 	Config.version = '0.10.2';
@@ -230,27 +242,13 @@
 		 * See `finishRename` above for a list of events this can emit.
 		 */
 		rename: function (name) {
-			// | , ; are not valid characters in names
-			name = name.replace(/[\|,;]+/g, '');
-			for (var i in this.replaceList) {
-				name = name.replace(this.replaceList[i], i);
-			}
-			for (var i in this.normalizeList) {
-				name = name.replace(this.normalizeList[i], i);
-			}
-			var userid = toUserid(name);
-			if (!userid) {
-				app.addPopupMessage("Usernames must contain at least one letter or number.");
-				return;
-			}
-
-			if (this.get('userid') !== userid) {
+			if (this.get('userid') !== toUserid(name)) {
+				var query = this.getActionPHP() + '?act=getassertion&userid=' +
+						encodeURIComponent(toUserid(name)) +
+						//'&challengekeyid=' + encodeURIComponent(this.challstr.charAt(0)) +
+						'&challenge=' + encodeURIComponent(this.challstr);
 				var self = this;
-				$.get(this.getActionPHP(), {
-					act: 'getassertion',
-					userid: userid,
-					challstr: this.challstr
-				}, function (data) {
+				getProxy(query, function(data) {
 					self.finishRename(name, data);
 				});
 			} else {
@@ -273,7 +271,7 @@
 					// wrong password
 					app.addPopup(LoginPasswordPopup, {
 						username: name,
-						error: 'Wrong password.'
+						error: 'Lmao, Wrong password.'
 					});
 				}
 			}), 'text');
@@ -2155,17 +2153,19 @@
 				'%': "Driver (%)",
 				'\u2605': "Player (\u2605)",
 				'+': "Voiced (+)",
+				' ': "",
 				'‽': "<span style='color:#777777'>Locked (‽)</span>",
 				'!': "<span style='color:#777777'>Muted (!)</span>"
 			};
-			var group = (groupDetails[name.substr(0, 1)] || '');
+			var group = (groupDetails[name.substr(0, 1)] || "Custom Symbol(" + name.substr(0,1) + ") ");
 			if (group || name.charAt(0) === ' ') name = name.substr(1);
 			var ownUserid = app.user.get('userid');
 
 			var buf = '<div class="userdetails">';
 			if (avatar) buf += '<img class="trainersprite' + (userid === ownUserid ? ' yours' : '') + '" src="' + Tools.resolveAvatar(avatar) + '" />';
 			buf += '<strong><a href="//pokemonshowdown.com/users/' + userid + '" target="_blank">' + Tools.escapeHTML(name) + '</a></strong><br />';
-			buf += '<small>' + (group || '&nbsp;') + '</small>';
+			//buf += '<small>' + (group || '&nbsp;') + '</small>';
+			buf += (group ? '<small' + group + '</small>' : '');
 			if (data.rooms) {
 				var battlebuf = '';
 				var chatbuf = '';
